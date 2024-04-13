@@ -1,0 +1,75 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	// "github.com/ghetzel/go-stockutil/sliceutil"
+)
+
+type TagArray struct {
+	Tags []string
+}
+
+type Frame struct {
+	Start   []int64
+	Stop    []int64
+	Project []string
+	FrameID []string
+	Tags    []TagArray
+	Updated []int64
+	Note    []string
+}
+
+func main() {
+	jsonFile, err := os.Open("frames")
+
+	// if we os.Open returns an error then handle it
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	defer jsonFile.Close()
+
+	decoder := json.NewDecoder(jsonFile)
+	decoder.UseNumber()
+
+	_, err = decoder.Token()
+	if err != nil {
+		log.Fatal(err)
+	}
+	//fmt.Printf("%T: %v\n", t, t)
+	unique := map[string]bool{}
+
+	for decoder.More() {
+		// Decode one Frame
+		var m [7]interface{}
+		// decode an array value
+		err := decoder.Decode(&m)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// for _, v := range m {
+		//     fmt.Printf("%v -> %T\n", v, v)
+		// }
+
+		// fmt.Printf("%T: %v\n", m[4], m[4])
+
+		// fmt.Printf("len = %v\n", sliceutil.Len(m[4]))
+		// Decode TagArray
+		unique[m[2].(string)] = true
+	}
+
+	// read closing bracket
+	_, err = decoder.Token()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Printf("%T: %v\n", t, t)
+	// fmt.Println(unique)
+	for k, _ := range unique {
+		fmt.Println("Project: ", k)
+	}
+}
