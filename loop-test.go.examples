@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+    "log"
 	"os"
-	// "github.com/ghetzel/go-stockutil/sliceutil"
+    "time"
+    "strconv"
+    "github.com/ghetzel/go-stockutil/sliceutil"
 )
 
 type TagArray struct {
@@ -33,43 +35,64 @@ func main() {
 	defer jsonFile.Close()
 
 	decoder := json.NewDecoder(jsonFile)
-	decoder.UseNumber()
+    decoder.UseNumber()
 
-	_, err = decoder.Token()
-	if err != nil {
-		log.Fatal(err)
-	}
-	//fmt.Printf("%T: %v\n", t, t)
-	unique := map[string]bool{}
+    _, err = decoder.Token()
+    if err != nil {
+        log.Fatal(err)
+    }
+    //fmt.Printf("%T: %v\n", t, t)
+    unique := map[string]bool{}
 
-	for decoder.More() {
-		// Decode one Frame
-		var m [7]interface{}
-		// decode an array value
-		err := decoder.Decode(&m)
-		if err != nil {
-			log.Fatal(err)
-		}
+    //current_date := time.Now()
+    newYork, err := time.LoadLocation("America/New_York")
+    current_date := time.Date(2024, time.April, 03, 0, 0, 0, 0, newYork)
+    var daily_duration time.Duration
+    for decoder.More() {
+        // Decode one Frame
+        var m [7]interface{}
+        // decode an array value
+        err := decoder.Decode(&m)
+        if err != nil {
+            log.Fatal(err)
+        }
 
-		// for _, v := range m {
-		//     fmt.Printf("%v -> %T\n", v, v)
-		// }
+        for _, v := range m {
+            fmt.Printf("%v -> %T\n", v, v)
+        }
 
-		// fmt.Printf("%T: %v\n", m[4], m[4])
+        fmt.Printf("%T: %v\n", m[4], m[4])
 
-		// fmt.Printf("len = %v\n", sliceutil.Len(m[4]))
-		// Decode TagArray
-		unique[m[2].(string)] = true
-	}
+        end_time_unix, err := m[1].(json.Number).Int64()
+        start_time_unix, err := m[0].(json.Number).Int64()
 
-	// read closing bracket
-	_, err = decoder.Token()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// fmt.Printf("%T: %v\n", t, t)
-	// fmt.Println(unique)
-	for k, _ := range unique {
-		fmt.Println("Project: ", k)
-	}
+        duration, err := time.ParseDuration(fmt.Sprintf("%vs", strconv.FormatInt(end_time_unix - start_time_unix, 10)))
+
+        start_time := time.Unix(start_time_unix, 0)
+
+        if current_date.Year() == start_time.Year() && current_date.YearDay() == start_time.YearDay() {
+            fmt.Printf("We have a match between current and start (%v) == (%v)\n", start_time.Format("2006-01-02"), current_date.Format("2006-01-02"))
+            daily_duration += duration
+        } else {
+            fmt.Printf("We don't have a match between current and start (%v) =/= (%v)\n", start_time.Format("2006-01-02"), current_date.Format("2006-01-02"))
+        }
+
+        fmt.Printf("Date: %v\n", start_time.Format("2006-01-02"))
+        fmt.Printf("Duration is %v seconds\n", duration.String())
+        fmt.Printf("Daily duration is %v\n", daily_duration.String())
+        fmt.Printf("len = %v\n", sliceutil.Len(m[4]))
+        // Decode TagArray
+        unique[m[2].(string)] = true
+    }
+
+    // read closing bracket
+    _, err = decoder.Token()
+    if err != nil {
+        log.Fatal(err)
+    }
+    // fmt.Printf("%T: %v\n", t, t)
+    // fmt.Println(unique)
+    for k, _ := range unique {
+        fmt.Println("Project: ", k)
+    }
 }
